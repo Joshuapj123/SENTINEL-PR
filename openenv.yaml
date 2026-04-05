@@ -1,0 +1,196 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# SENTINEL-PR  |  OpenEnv 2026 Specification
+# ─────────────────────────────────────────────────────────────────────────────
+
+openenv_api: "2026.1"
+
+env:
+  name: SENTINEL-PR
+  version: "1.1.0"
+  description: >
+    High-stakes Security & Dependency Auditor environment for AI agents.
+    Features gradient reward, Aura hallucination-risk scoring, repetition
+    penalty, and forced episode termination on redundant agent behaviour.
+  module: env
+  entry_point: make_env
+  tags:
+    - security
+    - static-analysis
+    - dependency-audit
+    - reinforcement-learning
+  license: Apache-2.0
+  runtime:
+    python: ">=3.10"
+    ram_budget_gb: 8
+    gpu_required: false
+    port: 7860
+
+observation_space:
+  type: object
+  schema_ref: "env.Observation"
+  properties:
+    source_code:       { type: string, max_bytes: 262144 }
+    dependency_manifest: { type: string, max_bytes: 65536 }
+    security_policy:   { type: object }
+    task_id:           { type: string }
+    step_index:        { type: integer, minimum: 0 }
+    elapsed_ms:        { type: number,  minimum: 0.0 }
+
+action_space:
+  type: object
+  schema_ref: "env.Action"
+  properties:
+    action_type:    { type: string, enum: [FLAG_VULN, PROPOSE_PATCH, REJECT_DEP, APPROVE] }
+    detail:         { type: string,  nullable: true }
+    package:        { type: string,  nullable: true }
+    patched_source: { type: string,  nullable: true }
+    confidence:     { type: number,  minimum: 0.0, maximum: 1.0 }
+
+reward:
+  type: gradient
+  range: [-4.0, 3.2]
+  terminal_actions: [APPROVE, REJECT_DEP]
+  description: >
+    Shaped reward with repetition penalty and forced-termination malus.
+    Base signal × (1 + 0.2·confidence) × time-decay.
+    Repetition penalty: -1.0 on second duplicate FLAG_VULN without patch.
+    Force-termination: episode ends + penalty after 3 redundant steps.
+  hyperparameters:
+    base_correct: 1.0
+    patch_high_fix_bonus: 0.8
+    patch_residual_high_penalty: -0.4
+    patch_medium_fix_bonus: 0.3
+    false_positive_penalty: -0.3
+    approve_safe_bonus: 0.5
+    approve_unsafe_penalty: -2.0
+    confidence_scale: 0.2
+    time_decay_half_life_s: 120.0
+    repetition_penalty: -1.0
+    redundant_step_limit: 3
+
+evaluation:
+  metric: total_episode_reward
+  aggregation: mean
+  num_eval_episodes: 50
+  baseline: 0.0
+  target: 1.8
+  per_task_targets:
+    task_hardcoded_key: 1.0
+    task_vulnerable_dep: 1.0
+    task_eval_auth_flaw: 1.6
+
+tasks:
+
+  - id: task_hardcoded_key
+    difficulty: easy
+    title: "Secret Leak — Hardcoded API Key"
+    max_steps: 6
+    observed_reward: 1.1899
+    description: >
+      Source file contains API_KEY = "sk-prod-..." as a module-level literal.
+      Agent must FLAG_VULN and optionally PROPOSE_PATCH replacing it with
+      os.environ.get("API_KEY").
+    objectives:
+      primary:
+        - action: FLAG_VULN
+          target: "hardcoded API key"
+          severity: HIGH
+          bandit_id: B105
+          cwe: CWE-798
+      secondary:
+        - action: PROPOSE_PATCH
+          target: "replace literal with os.environ.get()"
+    ground_truth:
+      vulnerabilities:
+        - type: hardcoded_secret
+          pattern: 'API_KEY\s*=\s*"sk-prod-'
+          severity: HIGH
+          bandit_id: B105
+      vulnerable_deps: []
+    scoring:
+      FLAG_VULN_correct: 1.0
+      PROPOSE_PATCH_high_fixed: 0.8
+      repetition_penalty: -1.0
+      APPROVE_unpatched: -2.0
+    hints: []
+
+  - id: task_vulnerable_dep
+    difficulty: medium
+    title: "Vulnerable Library — CVE-Pinned Dependencies"
+    max_steps: 6
+    observed_reward: 1.1799
+    description: >
+      requirements.txt pins Pillow 9.5.0 (CVE-2024-28219), urllib3 1.26.18
+      (CVE-2024-37891), and cryptography 38.0.4 (CVE-2024-26130).
+      Agent must issue REJECT_DEP for each vulnerable package.
+    objectives:
+      primary:
+        - action: REJECT_DEP
+          package: pillow
+          reason: "CVE-2024-28219; upgrade to >=10.3.0"
+        - action: REJECT_DEP
+          package: urllib3
+          reason: "CVE-2024-37891; upgrade to >=2.2.2"
+        - action: REJECT_DEP
+          package: cryptography
+          reason: "CVE-2024-26130; upgrade to >=42.0.4"
+    ground_truth:
+      vulnerabilities: []
+      vulnerable_deps:
+        - { package: pillow,       pinned: "9.5.0",    min_safe: "10.3.0",  cve: CVE-2024-28219 }
+        - { package: urllib3,      pinned: "1.26.18",  min_safe: "2.2.2",   cve: CVE-2024-37891 }
+        - { package: cryptography, pinned: "38.0.4",   min_safe: "42.0.4",  cve: CVE-2024-26130 }
+    scoring:
+      REJECT_DEP_correct_each: 1.0
+      false_positive: -0.3
+      repetition_penalty: -1.0
+      APPROVE_with_vuln_deps: -2.0
+    hints:
+      - "Each REJECT_DEP call scores independently."
+
+  - id: task_eval_auth_flaw
+    difficulty: hard
+    title: "Insecure Auth Middleware — RCE via eval() + Timing Oracle"
+    max_steps: 6
+    observed_reward: 1.2935
+    description: >
+      Flask auth middleware uses eval() on attacker-controlled token payload
+      at two call sites (CWE-78, Bandit B307) and compares HMAC signatures
+      with == instead of hmac.compare_digest() (CWE-208). Agent must flag
+      both classes then PROPOSE_PATCH achieving zero HIGH findings in bandit
+      re-scan.
+    objectives:
+      primary:
+        - action: FLAG_VULN
+          target: "eval() RCE at _verify_token and get_expiry"
+          severity: HIGH
+          cwe: CWE-78
+          bandit_id: B307
+          count: 2
+        - action: FLAG_VULN
+          target: "timing-unsafe HMAC comparison"
+          severity: MEDIUM
+          cwe: CWE-208
+        - action: PROPOSE_PATCH
+          requirement: "bandit re-scan HIGH count == 0"
+    ground_truth:
+      vulnerabilities:
+        - { type: rce_eval,      pattern: "eval\\(payload_str\\)", severity: HIGH,   bandit_id: B307, count: 2 }
+        - { type: timing_oracle, pattern: "sig == expected_sig",   severity: MEDIUM, bandit_id: ~ }
+      vulnerable_deps:
+        - { package: pyyaml, pinned: "5.4.1", min_safe: "6.0.1", cve: CVE-2022-1471 }
+      safe_patch_requirements:
+        - "No eval() in patched source"
+        - "hmac.compare_digest() used"
+        - "bandit HIGH count == 0"
+    scoring:
+      FLAG_VULN_eval: 1.0
+      FLAG_VULN_timing: 1.0
+      PROPOSE_PATCH_per_HIGH_fixed: 0.8
+      residual_HIGH_penalty: -0.4
+      repetition_penalty: -1.0
+      force_termination_penalty: -1.0_per_redundant_step
+      APPROVE_with_residual_HIGH: -2.0
+    hints:
+      - "Use json.loads() not ast.literal_eval() — the latter still allows RCE on dicts."
+      - "hmac.compare_digest() requires both args to be the same type."
