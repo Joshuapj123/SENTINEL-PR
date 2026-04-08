@@ -120,10 +120,9 @@ $env:HF_TOKEN="hf_..."
 python inference.py
 ```
 
-### Docker / HF Space
+### Gradio / HF Space
 ```bash
-docker build -t sentinel-pr .
-docker run -p 7860:7860 -e HF_TOKEN=$HF_TOKEN sentinel-pr
+python app.py
 ```
 
 ---
@@ -135,14 +134,13 @@ sentinel-pr/
 ├── env.py            # SentinelPREnv, reward engine, repetition penalty
 ├── inference.py      # LLM agent loop + Aura scoring
 ├── openenv.yaml      # OpenEnv 2026 spec
-├── requirements.txt
-├── Dockerfile
+├── requirements.txt  
+├── app.py            # To run the Model (python app.py)
 ├── .gitignore
 ├── .env
 ├── METRICS.md
 ├── smoke_test.py
 ├── test_success.py
-├── .dockerignore
 ├── smoke_test.py
 └── README.md
 ```
