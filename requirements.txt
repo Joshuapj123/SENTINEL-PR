@@ -1,0 +1,11 @@
+# SENTINEL-PR – let pip resolve the full dependency graph
+pydantic>=2.9.0
+bandit>=1.7.0
+safety>=3.2.0
+openenv-core==0.2.3
+openai>=2.7.2
+requests>=2.32.0
+urllib3>=2.2.0
+flask
+gradio
+uvicorn
