@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "sentinel-pr"
+version = "1.2.0"
+description = "Security & Dependency Auditor Environment for AI Agents — OpenEnv 2026"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+keywords = ["security", "static-analysis", "dependency-audit", "reinforcement-learning", "openenv"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Topic :: Security",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "pydantic>=2.9.0",
+    "bandit>=1.7.0",
+    "safety>=3.2.0",
+    "openenv-core==0.2.3",
+    "openai>=2.7.2",
+    "requests>=2.32.0",
+    "urllib3>=2.2.0",
+    "flask",
+    "gradio",
+    "uvicorn",
+    "fastapi",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio",
+]
+
+[project.scripts]
+sentinel-pr = "app:main"
+server      = "server.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sentinel_pr*"]
+
+[tool.setuptools.package-data]
+"*" = ["openenv.yaml", "*.md"]
+
+# ── OpenEnv 2026 multi-mode deployment descriptor ────────────────────────────
+[tool.openenv]
+name        = "SENTINEL-PR"
+version     = "1.2.0"
+entry_point = "env:make_env"
+app_file    = "app.py"
+port        = 7860
+
+[tool.openenv.modes.gradio]
+sdk         = "gradio"
+sdk_version = "5.25.0"
+app_file    = "app.py"
+
+[tool.openenv.modes.rest]
+endpoints   = ["/reset", "/step", "/health"]
+framework   = "fastapi"
+
+[tool.openenv.modes.python]
+module      = "env"
+entry_point = "make_env"
+
+[tool.openenv.runtime]
+python      = ">=3.10"
+ram_budget_gb = 8
+gpu_required  = false
