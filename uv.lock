@@ -1,0 +1,178 @@
+version = 1
+requires-python = ">=3.10"
+
+[[package]]
+name = "sentinel-pr"
+version = "1.2.0"
+source = { editable = "." }
+dependencies = [
+  { name = "pydantic" },
+  { name = "bandit" },
+  { name = "safety" },
+  { name = "openai" },
+  { name = "requests" },
+  { name = "urllib3" },
+  { name = "flask" },
+  { name = "gradio" },
+  { name = "uvicorn" },
+  { name = "fastapi" },
+]
+
+[package.metadata]
+requires-dist = [
+  { name = "pydantic",      specifier = ">=2.9.0"   },
+  { name = "bandit",        specifier = ">=1.7.0"   },
+  { name = "safety",        specifier = ">=3.2.0"   },
+  { name = "openenv-core",  specifier = "==0.2.3"   },
+  { name = "openai",        specifier = ">=2.7.2"   },
+  { name = "requests",      specifier = ">=2.32.0"  },
+  { name = "urllib3",       specifier = ">=2.2.0"   },
+  { name = "flask",         specifier = ">=3.0.3"   },
+  { name = "gradio",        specifier = ">=5.25.0"  },
+  { name = "uvicorn",       specifier = ">=0.29.0"  },
+  { name = "fastapi",       specifier = ">=0.111.0" },
+]
+
+[[package]]
+name = "annotated-types"
+version = "0.7.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/annotated-types-0.7.0.tar.gz", hash = "sha256:aff07c09a53a08bc8cfccb9c85b05f1aa9a2a6f23728d790723543408344ce89" }
+
+[[package]]
+name = "anyio"
+version = "4.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/anyio-4.4.0.tar.gz", hash = "sha256:5aadc6a1fb5e0be3d19d03b6c4a95fc9ffee6f193b90e2be7765a90f7a786edd" }
+
+[[package]]
+name = "bandit"
+version = "1.7.9"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/bandit-1.7.9.tar.gz", hash = "sha256:4a81818c36868e3d700d8516e0388f7bd41b0b3d4d64cf40bcf18b2a640a26b1" }
+
+[[package]]
+name = "certifi"
+version = "2024.8.30"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/certifi-2024.8.30.tar.gz", hash = "sha256:bec941d2aa8195e248a60b31ff9f0558284cf01a52591ceda73ea9afffd69fd9" }
+
+[[package]]
+name = "click"
+version = "8.1.7"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/click-8.1.7.tar.gz", hash = "sha256:ca9853ad459e787e2192211578cc907e7594e294c7ccc834310722b41b9ca6de" }
+
+[[package]]
+name = "fastapi"
+version = "0.111.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fastapi-0.111.1.tar.gz", hash = "sha256:c9b6fd5f14d670fe8a13a7c3a69a2cee7a1cfcb26db06f1c5d42bd4f7b8eb5b3" }
+
+[[package]]
+name = "flask"
+version = "3.0.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/flask-3.0.3.tar.gz", hash = "sha256:ceb27b0af3823ea2737928a4d99d125a06175b8512c445cbd9a9ce200ef76842" }
+
+[[package]]
+name = "gradio"
+version = "5.25.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/gradio-5.25.0.tar.gz", hash = "sha256:b0c8e15a40b3fc14bc9b7d3a5f97e34734c64e5a79a79c01df29f5d5be0d1bbb" }
+
+[[package]]
+name = "h11"
+version = "0.14.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/h11-0.14.0.tar.gz", hash = "sha256:8f19fbbe99e72420ff35c00b27a34cb9937e902a8b810e2c88300c9f0a1178e6" }
+
+[[package]]
+name = "httpcore"
+version = "1.0.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/httpcore-1.0.5.tar.gz", hash = "sha256:34a38e2f9502467c11f5f7cf3a51c0a91591f5ef98e0c99fb770f0e22db5ef87" }
+
+[[package]]
+name = "httpx"
+version = "0.27.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/httpx-0.27.0.tar.gz", hash = "sha256:a0cb88a46f32dc874e04ee956e4c2764aba2aa228f650b06788ba6bda2962ab5" }
+
+[[package]]
+name = "idna"
+version = "3.7"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/idna-3.7.tar.gz", hash = "sha256:028ff3aadf0609c1fd278d272a071d75c66de9ba96f1bdc5e5015c4b16ce60e4" }
+
+[[package]]
+name = "openai"
+version = "2.7.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/openai-2.7.2.tar.gz", hash = "sha256:placeholder" }
+
+[[package]]
+name = "openenv-core"
+version = "0.2.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/openenv_core-0.2.3.tar.gz", hash = "sha256:placeholder" }
+
+[[package]]
+name = "pydantic"
+version = "2.9.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/pydantic-2.9.2.tar.gz", hash = "sha256:d155cef71265d1e9807ed1c32b4c8deec042a44a50a4188b25ac67ecd81a9c0f" }
+
+[[package]]
+name = "pydantic-core"
+version = "2.23.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/pydantic_core-2.23.4.tar.gz", hash = "sha256:2584f7cf844ac4d970fba483a717dbe10c1c1c96a969bf65d61ffe94df1b2863" }
+
+[[package]]
+name = "requests"
+version = "2.32.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/requests-2.32.3.tar.gz", hash = "sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfed9ef68fd7ccb573b7b76" }
+
+[[package]]
+name = "safety"
+version = "3.2.9"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/safety-3.2.9.tar.gz", hash = "sha256:placeholder" }
+
+[[package]]
+name = "sniffio"
+version = "1.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/sniffio-1.3.1.tar.gz", hash = "sha256:f4324edc670a0f49750a81b895f35c3a579986dc8ee93adc4a1d855f8cdd9e63" }
+
+[[package]]
+name = "starlette"
+version = "0.37.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/starlette-0.37.2.tar.gz", hash = "sha256:9af890af6b5d207bf9e77ad1f8f4b6f8cf9e6a5e5ff99f9f43c8b8c5af5ba67" }
+
+[[package]]
+name = "typing-extensions"
+version = "4.12.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/typing_extensions-4.12.2.tar.gz", hash = "sha256:1a7ead55c7e559dd4dee8856e3a88b41225abfe1ce8df57b7c13915fe121ffb8" }
+
+[[package]]
+name = "urllib3"
+version = "2.2.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/urllib3-2.2.2.tar.gz", hash = "sha256:dd505485549a7a552833da5e6063639d0d177c04f23bc3864e41e5dc5f612168" }
+
+[[package]]
+name = "uvicorn"
+version = "0.30.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/uvicorn-0.30.6.tar.gz", hash = "sha256:4b79d7a97bd1a5592b4de5517ede5c0d7af8b7b5040038d8dc02ef49e3a3c5e3" }
+
+[[package]]
+name = "werkzeug"
+version = "3.0.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/werkzeug-3.0.3.tar.gz", hash = "sha256:09985b53b807c1e351ab3e7d5fe01f7d81f1754b0d5c7456ddbe1f7ee39adc97" }
