@@ -1,0 +1,165 @@
+openenv_api: "2026.1"
+
+env:
+  name: SENTINEL-PR
+  version: "1.2.0"
+  description: >
+    High-stakes security and dependency auditor. Agent must detect and patch
+    RCE via eval(), hardcoded secrets, timing oracles, insecure deserialization,
+    command injection, and CVE-pinned deps.
+  module: env
+  entry_point: make_env
+  tags:
+    - security
+    - static-analysis
+    - dependency-audit
+    - reinforcement-learning
+  license: Apache-2.0
+  runtime:
+    python: ">=3.10"
+    ram_budget_gb: 8
+    gpu_required: false
+    port: 7860
+
+observation_space:
+  type: object
+  schema_ref: "env.Observation"
+
+action_space:
+  type: object
+  schema_ref: "env.Action"
+
+reward:
+  type: gradient
+  range: [-18.0, 13.0]
+  terminal_actions: [APPROVE, REJECT]
+
+evaluation:
+  metric: total_episode_reward
+  aggregation: mean
+  num_eval_episodes: 50
+  baseline: 0.0
+  target: 10.0
+
+tasks:
+
+  - id: task_hardcoded_key
+    difficulty: easy
+    title: "Secret Leak — Hardcoded API Key"
+    max_steps: 6
+    description: >
+      Source file contains API_KEY = "sk-prod-..." hardcoded.
+      Agent must FLAG_VULN then PROPOSE_PATCH replacing with os.environ.get().
+    grader: grader.py
+    grader_class: Grader
+    grader_fn: grade
+    grader_kwargs:
+      task_id: task_hardcoded_key
+      total_issues: 1
+      score_min: 0.05
+      score_max: 0.95
+
+  - id: task_vulnerable_dep
+    difficulty: medium
+    title: "Vulnerable Dependencies — CVE-Pinned Packages"
+    max_steps: 8
+    description: >
+      requirements.txt pins Pillow 9.5.0, urllib3 1.26.18, cryptography 38.0.4.
+      Agent must PROPOSE_PATCH upgrading all to safe versions.
+    grader: grader.py
+    grader_class: Grader
+    grader_fn: grade
+    grader_kwargs:
+      task_id: task_vulnerable_dep
+      total_issues: 3
+      score_min: 0.05
+      score_max: 0.95
+
+  - id: task_eval_auth_flaw
+    difficulty: hard
+    title: "Insecure Auth — RCE via eval() + Hardcoded Secret + CVE Deps"
+    max_steps: 12
+    description: >
+      Flask auth middleware calls eval() on attacker-controlled JWT payload.
+      eval() RCE x2, hardcoded SECRET, timing oracle, CVE deps.
+    grader: grader.py
+    grader_class: Grader
+    grader_fn: grade
+    grader_kwargs:
+      task_id: task_eval_auth_flaw
+      total_issues: 4
+      score_min: 0.05
+      score_max: 0.95
+
+  - id: task_insecure_deserialization
+    difficulty: medium
+    title: "Insecure Deserialization — pickle.loads RCE + Hardcoded Token"
+    max_steps: 8
+    description: >
+      Flask app deserialises user session cookies with pickle.loads() on
+      attacker-controlled data (CWE-502, B301 CRITICAL).
+      Hardcoded SECRET_TOKEN in source (CWE-798, B105 HIGH).
+      Agent must FLAG_VULN then PROPOSE_PATCH replacing pickle with json.loads()
+      and SECRET_TOKEN with os.environ.get().
+    grader: grader.py
+    grader_class: Grader
+    grader_fn: grade
+    grader_kwargs:
+      task_id: task_insecure_deserialization
+      total_issues: 2
+      score_min: 0.05
+      score_max: 0.95
+    objectives:
+      primary:
+        - { action: FLAG_VULN,     target: "pickle.loads on untrusted data", severity: CRITICAL, bandit_id: B301, cwe: CWE-502 }
+        - { action: FLAG_VULN,     target: "hardcoded SECRET_TOKEN", severity: HIGH, bandit_id: B105, cwe: CWE-798 }
+        - { action: PROPOSE_PATCH, requirement: "replace pickle.loads with json.loads, SECRET_TOKEN with os.environ.get()" }
+    ground_truth:
+      vulnerabilities:
+        - { type: insecure_deserialisation, line: 8,  pattern: "pickle.loads(raw)", severity: CRITICAL, bandit_id: B301, cwe: CWE-502 }
+        - { type: hardcoded_secret,         line: 18, pattern: 'SECRET_TOKEN = "hardcoded', severity: HIGH, bandit_id: B105, cwe: CWE-798 }
+      vulnerable_deps:
+        - { package: flask,    pinned: "2.3.3",  min_safe: "3.0.3",  cve: CVE-2023-30861 }
+        - { package: pyyaml,   pinned: "5.4.1",  min_safe: "6.0.1",  cve: CVE-2022-1471  }
+        - { package: requests, pinned: "2.28.2", min_safe: "2.32.0", cve: CVE-2024-35195 }
+    hints:
+      - "pickle.loads is banned. Use json.loads() — it cannot execute code."
+      - "Replace SECRET_TOKEN with os.environ.get('SECRET_TOKEN', 'fallback')."
+
+  - id: task_command_injection
+    difficulty: hard
+    title: "Command Injection — os.system + subprocess.call + Hardcoded Secret"
+    max_steps: 10
+    description: >
+      Flask app passes unsanitised user input directly to os.system() and
+      subprocess.call(shell=True) (CWE-78, B605/B603 CRITICAL/HIGH).
+      Hardcoded API_SECRET in source (CWE-798, B105 HIGH).
+      Agent must FLAG_VULN then PROPOSE_PATCH replacing shell commands with
+      safe subprocess list-form and API_SECRET with os.environ.get().
+    grader: grader.py
+    grader_class: Grader
+    grader_fn: grade
+    grader_kwargs:
+      task_id: task_command_injection
+      total_issues: 3
+      score_min: 0.05
+      score_max: 0.95
+    objectives:
+      primary:
+        - { action: FLAG_VULN,     target: "os.system with unsanitised input", severity: CRITICAL, bandit_id: B605, cwe: CWE-78 }
+        - { action: FLAG_VULN,     target: "subprocess.call with shell=True",  severity: HIGH,     bandit_id: B603, cwe: CWE-78 }
+        - { action: FLAG_VULN,     target: "hardcoded API_SECRET",             severity: HIGH,     bandit_id: B105, cwe: CWE-798 }
+        - { action: PROPOSE_PATCH, requirement: "replace os.system/subprocess shell=True with safe list-form; API_SECRET from env" }
+    ground_truth:
+      vulnerabilities:
+        - { type: command_injection, line: 9,  pattern: "os.system(f\"ping",      severity: CRITICAL, bandit_id: B605, cwe: CWE-78  }
+        - { type: command_injection, line: 15, pattern: "subprocess.call(f\"nslookup", severity: HIGH, bandit_id: B603, cwe: CWE-78  }
+        - { type: hardcoded_secret,  line: 19, pattern: 'API_SECRET = "super-secret', severity: HIGH, bandit_id: B105, cwe: CWE-798 }
+      vulnerable_deps:
+        - { package: flask,    pinned: "2.3.3",  min_safe: "3.0.3",  cve: CVE-2023-30861 }
+        - { package: requests, pinned: "2.28.2", min_safe: "2.32.0", cve: CVE-2024-35195 }
+        - { package: urllib3,  pinned: "1.26.18",min_safe: "2.2.2",  cve: CVE-2024-37891 }
+    hints:
+      - "os.system and subprocess.call with shell=True are banned."
+      - "Use subprocess.run(['ping', '-c', '1', host], shell=False) instead."
+      - "API_SECRET must come from os.environ.get('API_SECRET', 'fallback')."
