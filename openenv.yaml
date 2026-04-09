@@ -1,0 +1,216 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# SENTINEL-PR  |  OpenEnv 2026 Specification  |  v1.2.0
+# ─────────────────────────────────────────────────────────────────────────────
+
+openenv_api: "2026.1"
+
+env:
+  name: SENTINEL-PR
+  version: "1.2.0"
+  description: >
+    High-stakes security and dependency auditor. Agent must detect and patch
+    RCE via eval(), hardcoded secrets, timing oracles, and CVE-pinned deps.
+  module: env
+  entry_point: make_env
+  tags:
+    - security
+    - static-analysis
+    - dependency-audit
+    - reinforcement-learning
+  license: Apache-2.0
+  runtime:
+    python: ">=3.10"
+    ram_budget_gb: 8
+    gpu_required: false
+    port: 7860
+
+  security_policy:
+    banned_functions:
+      - eval
+      - exec
+      - compile
+      - __import__
+      - pickle.loads
+      - pickle.load
+      - marshal.loads
+      - subprocess.call
+      - os.system
+    validation:
+      skip_never: true
+      require_syntax: true
+      require_security: true
+      require_runtime: true
+      bandit_confidence: HIGH
+    patch_safety_proof:
+      required: true
+      must_contain:
+        - "MECHANISM"
+        - "EXPLOIT"
+        - "FIX"
+      min_chars: 100
+
+observation_space:
+  type: object
+  schema_ref: "env.Observation"
+  properties:
+    source_code:           { type: string, max_bytes: 262144 }
+    dependency_manifest:   { type: string, max_bytes: 65536  }
+    security_policy:       { type: object }
+    task_id:               { type: string }
+    step_index:            { type: integer, minimum: 0 }
+    elapsed_ms:            { type: number,  minimum: 0.0 }
+    open_issues:           { type: object }
+    allowed_actions:       { type: array,  items: { type: string } }
+    current_phase:         { type: string }
+    priority_summary:      { type: object }
+    hint:                  { type: string, nullable: true }
+
+action_space:
+  type: object
+  schema_ref: "env.Action"
+  properties:
+    action_type:       { type: string, enum: [FLAG_VULN, PROPOSE_PATCH, REJECT_DEP, APPROVE, REJECT] }
+    confidence:        { type: number, minimum: 0.0, maximum: 1.0 }
+    detail:            { type: string, nullable: true }
+    evidence:          { type: array,  items: { type: string }, nullable: true }
+    package:           { type: string, nullable: true }
+    patched_source:    { type: string, nullable: true }
+    patched_manifest:  { type: string, nullable: true }
+    fix_rationale:     { type: string, nullable: true }
+    reasoning:         { type: string, nullable: true }
+    resolved_issues:   { type: object, nullable: true }
+    remaining_issues:  { type: object, nullable: true }
+    final_decision:    { type: string, nullable: true }
+
+reward:
+  type: gradient
+  range: [-18.0, 13.0]
+  terminal_actions: [APPROVE, REJECT]
+  description: >
+    Shaped reward. FLAG correct: +0.5. Fix CRITICAL: +2.0. Fix HIGH: +1.0.
+    Fix DEP each: +0.5. Approve clean: +1.5. Victory bonus: +5.0.
+  hyperparameters:
+    flag_correct:        0.5
+    flag_false_positive: -0.4
+    fix_critical:        2.0
+    fix_high:            1.0
+    fix_dep:             0.5
+    fix_medium:          0.5
+    approve_clean:       1.5
+    approve_dirty:       -3.0
+    victory_bonus:       5.0
+    invalid_action:      -1.5
+    flow_violation:      -2.0
+    repetition_base:     -0.3
+
+evaluation:
+  metric: total_episode_reward
+  aggregation: mean
+  num_eval_episodes: 50
+  baseline: 0.0
+  target: 10.0
+  per_task_targets:
+    task_hardcoded_key:  6.0
+    task_vulnerable_dep: 6.0
+    task_eval_auth_flaw: 12.0
+
+tasks:
+
+  - id: task_hardcoded_key
+    difficulty: easy
+    title: "Secret Leak — Hardcoded API Key"
+    max_steps: 6
+    description: >
+      Source file contains API_KEY = "sk-prod-..." as a module-level literal.
+      Agent must FLAG_VULN (B105/CWE-798) then PROPOSE_PATCH replacing with
+      os.environ.get("API_KEY"). Patch must pass bandit with 0 HIGH findings.
+    grader:
+      type: reward_normalize
+      module: grader
+      entry_point: grade
+      reward_min: -3.0
+      reward_max: 6.0
+      score_min: 0.01
+      score_max: 0.99
+    objectives:
+      primary:
+        - { action: FLAG_VULN,     target: "hardcoded API key", severity: HIGH, bandit_id: B105, cwe: CWE-798 }
+        - { action: PROPOSE_PATCH, requirement: "bandit HIGH count == 0 after patch" }
+    ground_truth:
+      vulnerabilities:
+        - { type: hardcoded_secret, pattern: 'API_KEY\s*=\s*"sk-prod-', severity: HIGH, bandit_id: B105 }
+      vulnerable_deps: []
+    hints: []
+
+  - id: task_vulnerable_dep
+    difficulty: medium
+    title: "Vulnerable Dependencies — CVE-Pinned Packages"
+    max_steps: 8
+    description: >
+      requirements.txt pins Pillow 9.5.0, urllib3 1.26.18, cryptography 38.0.4.
+      Agent must PROPOSE_PATCH with patched_manifest upgrading all to safe versions,
+      OR issue REJECT_DEP per package.
+    grader:
+      type: reward_normalize
+      module: grader
+      entry_point: grade
+      reward_min: -3.0
+      reward_max: 6.0
+      score_min: 0.01
+      score_max: 0.99
+    objectives:
+      primary:
+        - { action: PROPOSE_PATCH, requirement: "patched_manifest with all packages >= safe version" }
+    ground_truth:
+      vulnerabilities: []
+      vulnerable_deps:
+        - { package: pillow,       pinned: "9.5.0",   min_safe: "10.3.0", cve: CVE-2024-28219 }
+        - { package: urllib3,      pinned: "1.26.18", min_safe: "2.2.2",  cve: CVE-2024-37891 }
+        - { package: cryptography, pinned: "38.0.4",  min_safe: "42.0.4", cve: CVE-2024-26130 }
+    hints:
+      - "PROPOSE_PATCH with patched_manifest fixes all deps in one step."
+
+  - id: task_eval_auth_flaw
+    difficulty: hard
+    title: "Insecure Auth — RCE via eval() + Hardcoded Secret + CVE Deps"
+    max_steps: 12
+    description: >
+      Flask auth middleware calls eval() on attacker-controlled JWT payload.
+      eval() RCE x2, hardcoded SECRET, timing oracle, CVE deps.
+    grader:
+      type: reward_normalize
+      module: grader
+      entry_point: grade
+      reward_min: -18.0
+      reward_max: 13.0
+      score_min: 0.01
+      score_max: 0.99
+    objectives:
+      primary:
+        - { action: FLAG_VULN,     target: "eval() RCE lines 11+32", severity: CRITICAL, bandit_id: B307, cwe: CWE-78, count: 2 }
+        - { action: FLAG_VULN,     target: "hardcoded SECRET line 4", severity: HIGH,     bandit_id: B105, cwe: CWE-798 }
+        - { action: PROPOSE_PATCH, requirement: "bandit HIGH count == 0, no eval(), uses json.loads() and os.environ.get()" }
+        - { action: PROPOSE_PATCH, requirement: "patched_manifest with flask>=3.0.3, pyyaml>=6.0.1, requests>=2.32.0" }
+        - { action: APPROVE,       requirement: "all issues resolved" }
+    ground_truth:
+      vulnerabilities:
+        - { type: rce_eval,         line: 11, pattern: "eval(payload_str)", severity: CRITICAL, bandit_id: B307, cwe: CWE-78  }
+        - { type: rce_eval,         line: 32, pattern: "eval(payload_str)", severity: CRITICAL, bandit_id: B307, cwe: CWE-78  }
+        - { type: hardcoded_secret, line: 4,  pattern: 'SECRET = "super-secret', severity: HIGH, bandit_id: B105, cwe: CWE-798 }
+        - { type: timing_oracle,    line: 22, pattern: "sig == expected_sig", severity: MEDIUM, cwe: CWE-208 }
+      vulnerable_deps:
+        - { package: flask,    pinned: "2.3.3",  min_safe: "3.0.3",  cve: CVE-2023-30861 }
+        - { package: pyyaml,   pinned: "5.4.1",  min_safe: "6.0.1",  cve: CVE-2022-1471  }
+        - { package: requests, pinned: "2.28.2", min_safe: "2.32.0", cve: CVE-2024-35195 }
+      safe_patch_requirements:
+        - "No eval() anywhere in patched source"
+        - "No exec() anywhere in patched source"
+        - "Uses json.loads() for payload parsing"
+        - "Uses os.environ.get() for SECRET"
+        - "Uses hmac.compare_digest() for HMAC comparison"
+        - "Bandit HIGH count == 0 after re-scan"
+    hints:
+      - "eval() is banned. Use json.loads() only."
+      - "ast.literal_eval() is also unsafe on dict payloads – use json.loads()."
+      - "hmac.compare_digest() requires both args as str or both as bytes."
+      - "SECRET must come from os.environ.get('SECRET_KEY', 'fallback')."
