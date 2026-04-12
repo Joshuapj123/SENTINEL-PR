@@ -1,0 +1,103 @@
+openenv_api: "2026.1"
+
+env:
+  name: SENTINEL-PR
+  version: "1.2.0"
+  description: >
+    Security and dependency auditor environment for AI agents.
+    Detects and patches RCE, hardcoded secrets, and CVE-pinned dependencies.
+  module: env
+  entry_point: make_env
+  tags:
+    - security
+    - static-analysis
+    - dependency-audit
+    - reinforcement-learning
+  license: Apache-2.0
+  runtime:
+    python: ">=3.10"
+    ram_budget_gb: 8
+    gpu_required: false
+    port: 7860
+
+observation_space:
+  type: object
+  schema_ref: "env.Observation"
+
+action_space:
+  type: object
+  schema_ref: "env.Action"
+
+reward:
+  type: gradient
+  range: [-18.0, 13.0]
+  terminal_actions: [APPROVE, REJECT]
+
+evaluation:
+  metric: total_episode_reward
+  aggregation: mean
+  num_eval_episodes: 50
+  baseline: 0.0
+  target: 10.0
+
+tasks:
+
+  - id: task_hardcoded_key
+    difficulty: easy
+    title: "Secret Leak — Hardcoded API Key"
+    max_steps: 6
+    description: >
+      Source file contains a hardcoded API key.
+      Agent must FLAG_VULN then PROPOSE_PATCH using os.environ.get().
+    grader: grader.py
+    grader_class: Grader
+    grader_kwargs:
+      task_id: task_hardcoded_key
+
+  - id: task_vulnerable_dep
+    difficulty: medium
+    title: "Vulnerable Dependencies — CVE-Pinned Packages"
+    max_steps: 8
+    description: >
+      requirements.txt pins packages with known CVEs.
+      Agent must PROPOSE_PATCH upgrading all to safe versions.
+    grader: grader.py
+    grader_class: Grader
+    grader_kwargs:
+      task_id: task_vulnerable_dep
+
+  - id: task_eval_auth_flaw
+    difficulty: hard
+    title: "Insecure Auth — RCE via eval() + Hardcoded Secret + CVE Deps"
+    max_steps: 12
+    description: >
+      Flask auth middleware calls eval() on attacker-controlled JWT payload.
+      Agent must detect eval() RCE, hardcoded SECRET, timing oracle, and CVE deps.
+    grader: grader.py
+    grader_class: Grader
+    grader_kwargs:
+      task_id: task_eval_auth_flaw
+
+  - id: task_insecure_deserialization
+    difficulty: medium
+    title: "Insecure Deserialization — pickle.loads RCE"
+    max_steps: 8
+    description: >
+      Flask app deserialises cookies with pickle.loads() on untrusted data.
+      Agent must FLAG_VULN then PROPOSE_PATCH replacing pickle with json.loads().
+    grader: grader.py
+    grader_class: Grader
+    grader_kwargs:
+      task_id: task_insecure_deserialization
+
+  - id: task_command_injection
+    difficulty: hard
+    title: "Command Injection — os.system + subprocess.call"
+    max_steps: 10
+    description: >
+      Flask app passes unsanitised input to os.system() and subprocess.call(shell=True).
+      Agent must FLAG_VULN then PROPOSE_PATCH using safe subprocess list-form.
+    grader: grader.py
+    grader_class: Grader
+    grader_kwargs:
+      task_id: task_command_injection
